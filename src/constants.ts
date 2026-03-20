@@ -12,7 +12,7 @@ export const ROOT_SPACE_ID = "a19c345ab9866679b001d7d2138d88a1";
 export const TYPES = {
   type:       "e7d737c536764c609fa16aa64a8c90ad",  // Type — meta-type for type definitions
   property:   "808a04ceb21c4d888ad12e240613e5ca",  // Property — meta-type for property definitions
-  person:     "7ed45f2bc48b419e8e4664d5ff680b0d",
+  person:     "7ed45f2bc48b419e8e4664d5ff680b0d",  // CHANGE PERSON ID HERE
   project:    "484a18c5030a499cb0f2ef588ff16d50",
   topic:      "5ef5a5860f274d8e8f6c59ae5b3e89e2",
   text_block: "76474f2f00894e77a0410b39fb17d0bf",  // Text Block — rich markdown content
@@ -26,7 +26,7 @@ export const PROPERTIES = {
   name:             "a126ca530c8e48d5b88882c734c38935",
   description:      "9b1f76ff9711404c861e59dc3fa7d037",
   types:            "8f151ba4de204e3c9cb499ddf96f48f1",
-  web_url:          "eed38e74e67946bf8a42ea3e4f8fb5fb",
+  web_url:          "412ff593e9154012a43d4c27ec5c68b6",  // CHANGE WEB URL ID HERE
   birth_date:       "60f8b943d9a742109356fc108ee7212c",
   date_founded:     "41aa3d9847b64a97b7ec427e575b910e",
   topics:           "458fbc070dbf4c928f5716f3fdde7c32",
@@ -36,6 +36,18 @@ export const PROPERTIES = {
   filter:           "14a46854bfd14b1882152785c2dab9f3",  // JSON-encoded filter for data blocks
   collection_item:  "a99f9ce12ffa4dac8c61f6310d46064a",  // Points to an entity in a collection
   view:             "1907fd1c81114a3ca378b1f353425b65",  // View preference on a Blocks relation
+
+  // ─── Software Project Properties ───────────────────────────────────────────
+  github_stars:        "a79523e6aaa5dfc0701711234df6af9d",
+  software_licenses:   "5ace6184e9c1827ac02a7869702fba70",
+  primary_language:    "20fc67fd13044339aa7b25c568d5b513",  // CHANGE PRIMARY LANGUAGE ID HERE
+  categories:          "52e68966a4f743d3a7ae6cca8f838514",
+  backed_by:           "754b6d1e8d8e45d68aae153125d5d013",
+  first_release:       "7aec40985028a4ef6ef77159d0dab48e",
+  latest_version:      "94ba250ef7ee321b40562fce3ec97f56",
+  latest_release_date: "f17dfdcb033b6810ef6802ff244d9af1",
+  actively_maintained: "ffab986cc06f6f288efae9db7c4a3fdc",
+  contributors:        "fce8953f56af4e42a869725ed0b024f0",
 };
 
 // ─── Data Source Singletons ──────────────────────────────────────────────────

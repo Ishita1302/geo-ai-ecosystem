@@ -27,9 +27,25 @@ dotenv.config();
 // To add a new property, just add an entry here — no other code changes needed.
 
 const VALUE_PROPERTIES: Record<string, { id: string; type: "text" | "date" }> = {
-  web_url:      { id: PROPERTIES.web_url,      type: "text" },
-  birth_date:   { id: PROPERTIES.birth_date,   type: "date" },
-  date_founded: { id: PROPERTIES.date_founded,  type: "date" },
+  // Original lowercase keys (for people.json, topics.json)
+  web_url:             { id: PROPERTIES.web_url,             type: "text" },
+  birth_date:          { id: PROPERTIES.birth_date,          type: "date" },
+  date_founded:        { id: PROPERTIES.date_founded,        type: "date" },
+
+  // Capitalized keys (for projects_200.json)
+  "Web URL":             { id: PROPERTIES.web_url,             type: "text" },
+  "Birth Date":          { id: PROPERTIES.birth_date,          type: "date" },
+  "Date Founded":        { id: PROPERTIES.date_founded,        type: "date" },
+  "GitHub stars":        { id: PROPERTIES.github_stars,        type: "text" },
+  "Software licenses":   { id: PROPERTIES.software_licenses,   type: "text" },
+  "Primary language":    { id: PROPERTIES.primary_language,    type: "text" },
+  "Categories":          { id: PROPERTIES.categories,          type: "text" },
+  "Backed by":           { id: PROPERTIES.backed_by,           type: "text" },
+  "First release":       { id: PROPERTIES.first_release,       type: "date" },
+  "Latest version":      { id: PROPERTIES.latest_version,      type: "text" },
+  "Latest release date": { id: PROPERTIES.latest_release_date, type: "date" },
+  "Actively maintained": { id: PROPERTIES.actively_maintained, type: "text" },
+  "Contributors":        { id: PROPERTIES.contributors,        type: "text" },
 };
 
 // Build a values array from any entity data object using the registry above.
@@ -38,7 +54,20 @@ function extractValues(data: Record<string, any>) {
   const values: any[] = [];
   for (const [field, meta] of Object.entries(VALUE_PROPERTIES)) {
     if (data[field] != null) {
-      values.push({ property: meta.id, type: meta.type, value: data[field] });
+      let value = data[field];
+      
+      // Simple converter for "M/D/YYYY" to "YYYY-MM-DD"
+      if (meta.type === "date" && typeof value === "string" && value.includes("/")) {
+        const parts = value.split("/");
+        if (parts.length === 3) {
+          const m = parts[0].padStart(2, "0");
+          const d = parts[1].padStart(2, "0");
+          const y = parts[2];
+          value = `${y}-${m}-${d}`;
+        }
+      }
+      
+      values.push({ property: meta.id, type: meta.type, value });
     }
   }
   return values;
@@ -52,21 +81,31 @@ type TopicData = {
 };
 
 type PersonData = {
-  name: string;
-  description: string;
-  web_url?: string;
-  birth_date?: string;
-  topics?: string[];
+  "Name": string;
+  "Description": string;
+  "Web URL"?: string;
+  "Birth Date"?: string;
+  "topics"?: string[];
 };
 
 type ProjectData = {
-  name: string;
-  description: string;
-  web_url?: string;
-  date_founded?: string;
-  topics?: string[];
-  avatar_url?: string;
-  blocks?: string[];
+  "Name": string;
+  "Description": string;
+  "Web URL"?: string;
+  "Date Founded"?: string;
+  "GitHub stars"?: string;
+  "Software licenses"?: string;
+  "Primary language"?: string;
+  "Categories"?: string;
+  "Backed by"?: string;
+  "First release"?: string;
+  "Latest version"?: string;
+  "Latest release date"?: string;
+  "Actively maintained"?: string;
+  "Contributors"?: string;
+  "topics"?: string[];
+  "avatar_url"?: string;
+  "blocks"?: string[];
 };
 
 // ─── Main: Build Entities & Publish ──────────────────────────────────────────
@@ -84,7 +123,7 @@ async function main() {
     fs.readFileSync("./data_to_publish/people.json", "utf-8")
   );
   const projects: ProjectData[] = JSON.parse(
-    fs.readFileSync("./data_to_publish/projects.json", "utf-8")
+    fs.readFileSync("./data_to_publish/projects_200.json", "utf-8")
   );
 
   console.log(`  Loaded: ${topics.length} topics, ${people.length} people, ${projects.length} projects\n`);
@@ -129,16 +168,16 @@ async function main() {
     }
 
     const { id, ops } = Graph.createEntity({
-      name: person.name,
-      description: person.description,
+      name: person.Name,
+      description: person.Description,
       types: [TYPES.person],
       values,
       relations,
     });
 
-    personIdsByName[person.name] = id;
+    personIdsByName[person.Name] = id;
     allOps.push(...ops);
-    console.log(`  Created person: "${person.name}" → ${id}`);
+    console.log(`  Created person: "${person.Name}" → ${id}`);
   }
 
   // ── Step 4: Create Project entities ─────────────────────────────────────
@@ -160,16 +199,16 @@ async function main() {
     }
 
     const { id, ops } = Graph.createEntity({
-      name: project.name,
-      description: project.description,
+      name: project.Name,
+      description: project.Description,
       types: [TYPES.project],
       values,
       relations,
     });
 
-    projectIdsByName[project.name] = id;
+    projectIdsByName[project.Name] = id;
     allOps.push(...ops);
-    console.log(`  Created project: "${project.name}" → ${id}`);
+    console.log(`  Created project: "${project.Name}" → ${id}`);
   }
 
   // ── Step 5: Add Text Blocks to entities that have them ─────────────────
@@ -194,8 +233,8 @@ async function main() {
   for (const project of projects) {
     if (!project.blocks || project.blocks.length === 0) continue;
 
-    const parentId = projectIdsByName[project.name];
-    console.log(`  Adding ${project.blocks.length} text blocks to "${project.name}"...`);
+    const parentId = projectIdsByName[project.Name];
+    console.log(`  Adding ${project.blocks.length} text blocks to "${project.Name}"...`);
 
     for (const line of project.blocks) {
       const { id: blockId, ops: blockOps } = Graph.createEntity({
@@ -233,12 +272,12 @@ async function main() {
   for (const project of projects) {
     if (!project.avatar_url) continue;
 
-    const parentId = projectIdsByName[project.name];
-    console.log(`\n  Uploading avatar for "${project.name}" to IPFS...`);
+    const parentId = projectIdsByName[project.Name];
+    console.log(`\n  Uploading avatar for "${project.Name}" to IPFS...`);
 
     const { id: imageId, ops: imageOps, cid: imageCid } = await Graph.createImage({
       url: project.avatar_url,
-      name: `${project.name} Avatar`,
+      name: `${project.Name} Avatar`,
       network: "TESTNET",
     });
     allOps.push(...imageOps);
@@ -252,8 +291,6 @@ async function main() {
     allOps.push(...attachImageOps);
     console.log(`  Attached image as avatar`);
   }
-
-  const ethereumId = projectIdsByName["Ethereum"];
 
   // ── Step 6: Add Data Blocks (Query + Collection) ──────────────────────────
   // Data Blocks render structured results inside an entity page.
@@ -270,7 +307,7 @@ async function main() {
   // A *View* (Table, List, Gallery, Bullets) can be set on the Blocks
   // relation via the `entityRelations` parameter — this decorates the
   // relation entity with a View relation.
-  console.log("\nStep 6: Adding Data Blocks (Query + Collection) to Ethereum...");
+  console.log("\nStep 6: Adding Data Blocks (Query + Collection) to the first project...");
 
   // ── 6a: Query Data Block — "Related Topics" ───────────────────────────
   // This block renders all Topic-typed entities in the space at view time.
@@ -304,11 +341,13 @@ async function main() {
   console.log(`  Created query data block ("Related Topics"): ${queryBlockId}`);
   console.log(`    Filter: ${queryFilter}`);
 
-  // Attach to Ethereum with a Gallery view — position after last text block
-  pos = Position.generateBetween(lastPosByEntity[ethereumId] ?? null, null);
-  lastPosByEntity[ethereumId] = pos;
+  // Attach to the first project with a Gallery view — position after last text block
+  const firstProjectName = projects[0].Name;
+  const firstProjectId = projectIdsByName[firstProjectName];
+  pos = Position.generateBetween(lastPosByEntity[firstProjectId] ?? null, null);
+  lastPosByEntity[firstProjectId] = pos;
   const { ops: attachQueryOps } = Graph.createRelation({
-    fromEntity: ethereumId,
+    fromEntity: firstProjectId,
     toEntity: queryBlockId,
     type: PROPERTIES.blocks,
     position: pos,
@@ -320,7 +359,7 @@ async function main() {
     },
   });
   allOps.push(...attachQueryOps);
-  console.log(`  Attached query block      → position: ${pos}  (Gallery view)`);
+  console.log(`  Attached query block to "${firstProjectName}" → position: ${pos}  (Gallery view)`);
 
   // ── 6b: Collection Data Block — "Key People" ─────────────────────────
   // This block shows a hand-picked, ordered list of entities.
@@ -345,11 +384,11 @@ async function main() {
   console.log(`  Created collection data block ("Key People"): ${collectionBlockId}`);
   console.log(`    Items: Vitalik Buterin (${vitalikId}), Satoshi Nakamoto (${satoshiId})`);
 
-  // Attach to Ethereum with a List view — position after query block
-  pos = Position.generateBetween(lastPosByEntity[ethereumId] ?? null, null);
-  lastPosByEntity[ethereumId] = pos;
+  // Attach to the first project with a List view — position after query block
+  pos = Position.generateBetween(lastPosByEntity[firstProjectId] ?? null, null);
+  lastPosByEntity[firstProjectId] = pos;
   const { ops: attachCollectionOps } = Graph.createRelation({
-    fromEntity: ethereumId,
+    fromEntity: firstProjectId,
     toEntity: collectionBlockId,
     type: PROPERTIES.blocks,
     position: pos,
@@ -358,7 +397,7 @@ async function main() {
     },
   });
   allOps.push(...attachCollectionOps);
-  console.log(`  Attached collection block → position: ${pos}  (List view)`);
+  console.log(`  Attached collection block to "${firstProjectName}" → position: ${pos}  (List view)`);
 
   // ── Step 7: Summary ───────────────────────────────────────────────────────
   console.log(`\n--- Summary ---`);
