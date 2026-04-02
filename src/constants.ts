@@ -26,11 +26,11 @@ export const PROPERTIES = {
   name:             "a126ca530c8e48d5b88882c734c38935",
   description:      "9b1f76ff9711404c861e59dc3fa7d037",
   types:            "8f151ba4de204e3c9cb499ddf96f48f1",
-  web_url:          "412ff593e9154012a43d4c27ec5c68b6",  // CHANGE WEB URL ID HERE
+  web_url:          "412ff593e9154012a43d4c27ec5c68b6",  // Web URL of the project 
   birth_date:       "60f8b943d9a742109356fc108ee7212c",
   date_founded:     "41aa3d9847b64a97b7ec427e575b910e",
   topics:           "458fbc070dbf4c928f5716f3fdde7c32",
-  blocks:           "beaba5cba67741a8b35377030613fc70",  // Blocks relation — attaches blocks to a parent entity
+  blocks:           "beaba5cba67741a8b35377030613fc70",  // Blocks relation — links text blocks to other text blocks  
   markdown_content: "e3e363d1dd294ccb8e6ff3b76d99bc33",  // Markdown body for a text block
   data_source_type: "1f69cc9880d444abad493df6a7b15ee4",  // Declares query vs collection data source
   filter:           "14a46854bfd14b1882152785c2dab9f3",  // JSON-encoded filter for data blocks
@@ -39,15 +39,16 @@ export const PROPERTIES = {
 
   // ─── Software Project Properties ───────────────────────────────────────────
   github_stars:        "a79523e6aaa5dfc0701711234df6af9d",
-  software_licenses:   "5ace6184e9c1827ac02a7869702fba70",
-  primary_language:    "20fc67fd13044339aa7b25c568d5b513",  // CHANGE PRIMARY LANGUAGE ID HERE
-  categories:          "52e68966a4f743d3a7ae6cca8f838514",
+  software_licenses:   "7fc423a18e304205988af467d1f8b84a",
+  primary_language:    "20fc67fd13044339aa7b25c568d5b513",  // Primary language of the project
+  categories:          "e90b31e172f849fc9cdc1410241faabe",
   backed_by:           "754b6d1e8d8e45d68aae153125d5d013",
   first_release:       "7aec40985028a4ef6ef77159d0dab48e",
   latest_version:      "94ba250ef7ee321b40562fce3ec97f56",
   latest_release_date: "f17dfdcb033b6810ef6802ff244d9af1",
   actively_maintained: "ffab986cc06f6f288efae9db7c4a3fdc",
   contributors:        "fce8953f56af4e42a869725ed0b024f0",
+  
 };
 
 // ─── Data Source Singletons ──────────────────────────────────────────────────

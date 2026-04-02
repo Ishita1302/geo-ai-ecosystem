@@ -1,14 +1,22 @@
 [
   {
-    "name": "Blockchain",
-    "description": "A distributed, immutable ledger technology that enables secure and transparent record-keeping across a decentralized network."
+    "name": "Machine Learning",
+    "description": "A field of artificial intelligence that uses statistical techniques to give computer systems the ability to learn from data."
   },
   {
-    "name": "Smart Contracts",
-    "description": "Self-executing programs stored on a blockchain that automatically enforce the terms of an agreement when predefined conditions are met."
+    "name": "Large Language Models",
+    "description": "Advanced AI models trained on vast datasets to understand, generate, and interact with human-like text."
   },
   {
-    "name": "Decentralized Knowledge Graphs",
-    "description": "Open, permissionless knowledge graphs that enable collaborative knowledge curation without centralized control."
+    "name": "Deep Learning",
+    "description": "A subset of machine learning based on artificial neural networks with multiple layers."
+  },
+  {
+    "name": "Computer Vision",
+    "description": "An interdisciplinary field that deals with how computers can gain high-level understanding from digital images or videos."
+  },
+  {
+    "name": "Natural Language Processing",
+    "description": "A branch of AI that helps computers understand, interpret, and manipulate human language."
   }
 ]

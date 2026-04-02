@@ -61,9 +61,6 @@ export async function publishOps(ops: Op[], editName: string, input_space?: stri
   const personalSpaceData = await gql(`{
     spaces(filter: { address: { is: "${author}" } }) { id type }
   }`);
-  
-  if (!author)
-    throw new Error("Smart Wallet address not found from private key.");
 
   console.log(`\nQuerying space ${spaceId} from the API...`);
 

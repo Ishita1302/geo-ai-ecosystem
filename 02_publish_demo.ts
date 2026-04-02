@@ -26,26 +26,23 @@ dotenv.config();
 // Maps JSON field names to their property ID and value type.
 // To add a new property, just add an entry here — no other code changes needed.
 
-const VALUE_PROPERTIES: Record<string, { id: string; type: "text" | "date" }> = {
+const VALUE_PROPERTIES: Record<string, { id: string; type: "text" | "date" | "number" }> = {
   // Original lowercase keys (for people.json, topics.json)
   web_url:             { id: PROPERTIES.web_url,             type: "text" },
   birth_date:          { id: PROPERTIES.birth_date,          type: "date" },
   date_founded:        { id: PROPERTIES.date_founded,        type: "date" },
 
-  // Capitalized keys (for projects_200.json)
+  // Capitalized keys (for project_200_1.json)
   "Web URL":             { id: PROPERTIES.web_url,             type: "text" },
   "Birth Date":          { id: PROPERTIES.birth_date,          type: "date" },
   "Date Founded":        { id: PROPERTIES.date_founded,        type: "date" },
-  "GitHub stars":        { id: PROPERTIES.github_stars,        type: "text" },
+  "GitHub stars":        { id: PROPERTIES.github_stars,        type: "number" },
   "Software licenses":   { id: PROPERTIES.software_licenses,   type: "text" },
   "Primary language":    { id: PROPERTIES.primary_language,    type: "text" },
-  "Categories":          { id: PROPERTIES.categories,          type: "text" },
-  "Backed by":           { id: PROPERTIES.backed_by,           type: "text" },
   "First release":       { id: PROPERTIES.first_release,       type: "date" },
   "Latest version":      { id: PROPERTIES.latest_version,      type: "text" },
   "Latest release date": { id: PROPERTIES.latest_release_date, type: "date" },
   "Actively maintained": { id: PROPERTIES.actively_maintained, type: "text" },
-  "Contributors":        { id: PROPERTIES.contributors,        type: "text" },
 };
 
 // Build a values array from any entity data object using the registry above.
@@ -81,11 +78,11 @@ type TopicData = {
 };
 
 type PersonData = {
-  "Name": string;
-  "Description": string;
-  "Web URL"?: string;
-  "Birth Date"?: string;
-  "topics"?: string[];
+  name: string;
+  description: string;
+  web_url?: string;
+  birth_date?: string;
+  topics?: string[];
 };
 
 type ProjectData = {
@@ -103,6 +100,7 @@ type ProjectData = {
   "Latest release date"?: string;
   "Actively maintained"?: string;
   "Contributors"?: string;
+  "Dependencies"?: string; // Added field for cross-project relations
   "topics"?: string[];
   "avatar_url"?: string;
   "blocks"?: string[];
@@ -122,9 +120,20 @@ async function main() {
   const people: PersonData[] = JSON.parse(
     fs.readFileSync("./data_to_publish/people.json", "utf-8")
   );
-  const projects: ProjectData[] = JSON.parse(
-    fs.readFileSync("./data_to_publish/projects_200.json", "utf-8")
+  const rawProjects: any[] = JSON.parse(
+    fs.readFileSync("./data_to_publish/project_200_1.json", "utf-8")
   );
+
+  // Clean up data from JSON (some keys/values in project_200_1 have trailing spaces)
+  const projects: ProjectData[] = rawProjects.map((p) => {
+    const cleaned: any = {};
+    for (const [key, val] of Object.entries(p)) {
+      const cleanKey = key.trim();
+      const cleanVal = typeof val === "string" ? val.trim() : val;
+      cleaned[cleanKey] = cleanVal;
+    }
+    return cleaned;
+  });
 
   console.log(`  Loaded: ${topics.length} topics, ${people.length} people, ${projects.length} projects\n`);
 
@@ -168,16 +177,16 @@ async function main() {
     }
 
     const { id, ops } = Graph.createEntity({
-      name: person.Name,
-      description: person.Description,
+      name: person.name,
+      description: person.description,
       types: [TYPES.person],
       values,
       relations,
     });
 
-    personIdsByName[person.Name] = id;
+    personIdsByName[person.name] = id;
     allOps.push(...ops);
-    console.log(`  Created person: "${person.Name}" → ${id}`);
+    console.log(`  Created person: "${person.name}" → ${id}`);
   }
 
   // ── Step 4: Create Project entities ─────────────────────────────────────
@@ -185,6 +194,8 @@ async function main() {
   console.log("\nStep 4: Creating Project entities...");
 
   const projectIdsByName: Record<string, string> = {};
+  const companyIdsByName: Record<string, string> = {};
+  const categoryIdsByName: Record<string, string> = {};
 
   for (const project of projects) {
     const values = extractValues(project);
@@ -193,9 +204,102 @@ async function main() {
       .filter((t) => topicIdsByName[t])
       .map((t) => ({ toEntity: topicIdsByName[t] }));
 
-    const relations: Record<string, Array<{ toEntity: string }>> = {};
+    const relations: Record<string, any[]> = {};
     if (topicRelations.length > 0) {
       relations[PROPERTIES.topics] = topicRelations;
+    }
+
+    // Parse and create contributor Person entities
+    if (project.Contributors) {
+      // Split by commas, ampersands, or "and", then clean up
+      const contributorNames = project.Contributors.split(/[,&]|\band\b/)
+        .map((name) => name.trim())
+        .filter((name) => name.length > 0);
+
+      const contributorRelations: Array<{ toEntity: string }> = [];
+
+      for (const name of contributorNames) {
+        // Reuse existing person if already created in Step 3
+        let personId = personIdsByName[name];
+
+        if (!personId) {
+          // Create a new Person entity if not found
+          const { id: newPersonId, ops: personOps } = Graph.createEntity({
+            name: name,
+            types: [TYPES.person],
+          });
+          personId = newPersonId;
+          allOps.push(...personOps);
+          personIdsByName[name] = personId; // Cache for other projects
+          console.log(`  Created contributor: "${name}" → ${personId}`);
+        }
+
+        contributorRelations.push({ toEntity: personId });
+      }
+
+      if (contributorRelations.length > 0) {
+        relations[PROPERTIES.contributors] = contributorRelations;
+      }
+    }
+
+    // Parse and create Backed by (Company) entities
+    if (project["Backed by"]) {
+      const companyNames = project["Backed by"].split(/[,&]|\band\b/)
+        .map((name) => name.trim())
+        .filter((name) => name.length > 0);
+
+      const companyRelations: Array<{ toEntity: string }> = [];
+
+      for (const name of companyNames) {
+        let companyId = companyIdsByName[name];
+
+        if (!companyId) {
+          const { id: newCompanyId, ops: companyOps } = Graph.createEntity({
+            name: name,
+            types: [TYPES.company],
+          });
+          companyId = newCompanyId;
+          allOps.push(...companyOps);
+          companyIdsByName[name] = companyId;
+          console.log(`  Created company: "${name}" → ${companyId}`);
+        }
+
+        companyRelations.push({ toEntity: companyId });
+      }
+
+      if (companyRelations.length > 0) {
+        relations[PROPERTIES.backed_by] = companyRelations;
+      }
+    }
+
+    // Parse and create Category entities
+    if (project.Categories) {
+      const categoryNames = project.Categories.split(/[,&]|\band\b/)
+        .map((name) => name.trim())
+        .filter((name) => name.length > 0);
+
+      const categoryRelations: Array<{ toEntity: string }> = [];
+
+      for (const name of categoryNames) {
+        let categoryId = categoryIdsByName[name];
+
+        if (!categoryId) {
+          const { id: newCategoryId, ops: categoryOps } = Graph.createEntity({
+            name: name,
+            types: [TYPES.category],
+          });
+          categoryId = newCategoryId;
+          allOps.push(...categoryOps);
+          categoryIdsByName[name] = categoryId;
+          console.log(`  Created category: "${name}" → ${categoryId}`);
+        }
+
+        categoryRelations.push({ toEntity: categoryId });
+      }
+
+      if (categoryRelations.length > 0) {
+        relations[PROPERTIES.categories] = categoryRelations;
+      }
     }
 
     const { id, ops } = Graph.createEntity({
@@ -211,7 +315,46 @@ async function main() {
     console.log(`  Created project: "${project.Name}" → ${id}`);
   }
 
-  // ── Step 5: Add Text Blocks to entities that have them ─────────────────
+  // ── Step 5: Link project dependencies ──────────────────────────────────
+  // Now that all projects have IDs, we can create cross-project relations.
+  console.log("\nStep 5: Linking cross-project dependencies...");
+
+  for (const project of projects) {
+    if (!project.Dependencies) continue;
+
+    const parentId = projectIdsByName[project.Name];
+    const depNames = project.Dependencies.split(/[,&]|\band\b/)
+      .map((name) => name.trim())
+      .filter((name) => name.length > 0);
+
+    const depRelations: Array<{ toEntity: string }> = [];
+
+    for (const name of depNames) {
+      // Find the project ID by name (case-insensitive search for better matching)
+      const depId = projectIdsByName[name] || 
+                    Object.keys(projectIdsByName).find(k => k.toLowerCase() === name.toLowerCase()) && projectIdsByName[Object.keys(projectIdsByName).find(k => k.toLowerCase() === name.toLowerCase())!];
+
+      if (depId) {
+        depRelations.push({ toEntity: depId });
+      } else {
+        console.warn(`    Warning: Dependency "${name}" not found in current dataset.`);
+      }
+    }
+
+    if (depRelations.length > 0) {
+      for (const dep of depRelations) {
+        const { ops: depOps } = Graph.createRelation({
+          fromEntity: parentId,
+          toEntity: dep.toEntity,
+          type: PROPERTIES.dependencies,
+        });
+        allOps.push(...depOps);
+      }
+      console.log(`  Linked ${depRelations.length} dependencies to "${project.Name}"`);
+    }
+  }
+
+  // ── Step 6: Add Text Blocks to entities that have them ─────────────────
   // Blocks are standalone entities attached to a parent via the Blocks
   // relation. Each relation carries a `position` string for ordering
   // (fractional indexing — positions sort lexicographically).
@@ -364,8 +507,8 @@ async function main() {
   // ── 6b: Collection Data Block — "Key People" ─────────────────────────
   // This block shows a hand-picked, ordered list of entities.
   // Each entity is added via a Collection item relation.
-  const vitalikId = personIdsByName["Vitalik Buterin"];
-  const satoshiId = personIdsByName["Satoshi Nakamoto"];
+  const andrejId = personIdsByName["Andrej Karpathy"];
+  const yannId = personIdsByName["Yann LeCun"];
 
   const { id: collectionBlockId, ops: collectionBlockOps } = Graph.createEntity({
     name: "Key People",
@@ -375,14 +518,14 @@ async function main() {
       [PROPERTIES.data_source_type]: { toEntity: COLLECTION_DATA_SOURCE },
       // Add each person as a collection item (order follows array order)
       [PROPERTIES.collection_item]: [
-        { toEntity: vitalikId },
-        { toEntity: satoshiId },
+        { toEntity: andrejId },
+        { toEntity: yannId },
       ],
     },
   });
   allOps.push(...collectionBlockOps);
   console.log(`  Created collection data block ("Key People"): ${collectionBlockId}`);
-  console.log(`    Items: Vitalik Buterin (${vitalikId}), Satoshi Nakamoto (${satoshiId})`);
+  console.log(`    Items: Andrej Karpathy (${andrejId}), Yann LeCun (${yannId})`);
 
   // Attach to the first project with a List view — position after query block
   pos = Position.generateBetween(lastPosByEntity[firstProjectId] ?? null, null);
@@ -414,6 +557,9 @@ async function main() {
 
   // ── Step 8: Publish ───────────────────────────────────────────────────────
   console.log("\nStep 8: Publishing to the Geo knowledge graph...");
+  if (!fs.existsSync("data_to_delete")) {
+    fs.mkdirSync("data_to_delete");
+  }
   printOps(allOps, "data_to_delete", "demo_publish_ops.txt")
   const txHash = await publishOps(allOps, "Demo: publish sample entities");
   console.log(`\nDone! Transaction: ${txHash}`);
