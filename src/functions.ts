@@ -37,20 +37,23 @@ export async function gql(query: string, variables?: Record<string, any>) {
   return json.data;
 }
 
-// ─── Publishing Helper ───────────────────────────────────────────────────────
-// Only DEMO_SPACE_ID is required — the space type & address are queried
-// automatically from the API.  For DAO spaces the caller's member space is
-// resolved by matching SW_ADDRESS against the DAO's members or editors list.
 
 export async function publishOps(ops: Op[], editName: string, input_space?: string) {
-  let spaceId = process.env.DEMO_SPACE_ID; 
+  let spaceId = process.env.DEMO_SPACE_ID;
   if (input_space) {
     spaceId = input_space
   }
   if (!spaceId) throw new Error("DEMO_SPACE_ID not set in .env");
 
-  const privateKey = process.env.PK_SW as `0x${string}`;
-  if (!privateKey) throw new Error("PK_SW not set in .env");
+  const privateKeyRaw = process.env.PK_SW;
+  let privateKeyStr = privateKeyRaw?.replace(/"/g, "")?.replace(/'/g, "")?.trim() || "";
+  if (privateKeyStr.startsWith("0x")) {
+    privateKeyStr = privateKeyStr.slice(2);
+  }
+  console.log(`  Private key length: ${privateKeyStr.length}`);
+  const privateKey = `0x${privateKeyStr}` as `0x${string}`;
+  if (!privateKey || privateKey === "0xundefined" || privateKey === "0x") throw new Error("PK_SW not set in .env or invalid");
+  console.log(`  Using author address...`);
 
   const client = await getSmartAccountWalletClient({
     privateKey: privateKey,
@@ -95,21 +98,21 @@ export async function publishOps(ops: Op[], editName: string, input_space?: stri
     to = result.to;
     calldata = result.calldata;
   } else {
-    // Resolve the caller's wallet address to their personal space ID
-    
+
+
     const callerSpace = personalSpaceData.spaces?.find(
       (s: any) => s.type === "PERSONAL",
     );
     if (!callerSpace) {
       throw new Error(
         `No personal space found for wallet ${author}. ` +
-          `Make sure this wallet has a personal space on the Geo testnet.`,
+        `Make sure this wallet has a personal space on the Geo testnet.`,
       );
     }
     const callerSpaceId: string = callerSpace.id;
     console.log(`  Caller personal space: ${callerSpaceId}`);
 
-    // Verify the caller's personal space is a member or editor of the DAO
+
     const members: Array<{ memberSpaceId: string }> =
       spaceData.space.membersList;
     const editors: Array<{ memberSpaceId: string }> =
@@ -122,8 +125,8 @@ export async function publishOps(ops: Op[], editName: string, input_space?: stri
     if (!isMemberOrEditor) {
       throw new Error(
         `Your personal space (${callerSpaceId}) is not a member or editor of DAO space ${spaceId}. ` +
-          `Members: ${members.map((m) => m.memberSpaceId).join(", ")}  ` +
-          `Editors: ${editors.map((e) => e.memberSpaceId).join(", ")}`,
+        `Members: ${members.map((m) => m.memberSpaceId).join(", ")}  ` +
+        `Editors: ${editors.map((e) => e.memberSpaceId).join(", ")}`,
       );
     }
 
@@ -148,7 +151,6 @@ export async function publishOps(ops: Op[], editName: string, input_space?: stri
 }
 
 // ─── printOps ────────────────────────────────────────────────────────────────
-// Serializes ops to a JSON file, converting UUID byte arrays to hex strings.
 
 function isUuidByteArray(obj: any): boolean {
   if (typeof obj !== "object" || obj === null || Array.isArray(obj))
