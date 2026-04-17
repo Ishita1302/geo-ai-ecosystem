@@ -202,7 +202,8 @@ export function printOps(ops: any, outputDir: string, fn: string) {
 
   if (ops.length > 0) {
     const convertedOps = convertUuidBytes(ops);
-    const outputText = JSON.stringify(convertedOps, null, 2);
+    const outputText = JSON.stringify(convertedOps, (key, value) =>
+      typeof value === 'bigint' ? value.toString() : value, 2);
     const filePath = path.join(outputDir, fn);
     fs.writeFileSync(filePath, outputText);
     console.log(`OPS PRINTED to ${fn}`);
