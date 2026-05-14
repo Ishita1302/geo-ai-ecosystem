@@ -1,0 +1,1 @@
+{"version":3,"file":"create-space.js","sourceRoot":"","sources":["../../../src/personal-space/create-space.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,OAAO,EAAE,MAAM,oBAAoB,CAAC;AAC7C,OAAO,EAAE,8BAA8B,EAAE,MAAM,uBAAuB,CAAC;AAGvE;;;;;;;;;;;;;;;;;;;;;GAqBG;AACH,MAAM,UAAU,WAAW;IACzB,OAAO;QACL,EAAE,EAAE,OAAO,CAAC,sBAAsB;QAClC,QAAQ,EAAE,8BAA8B,EAAE;KAC3C,CAAC;AACJ,CAAC"}

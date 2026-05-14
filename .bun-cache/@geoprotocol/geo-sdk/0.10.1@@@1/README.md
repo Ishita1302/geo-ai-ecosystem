@@ -1,0 +1,469 @@
+# Geo SDK
+
+A collection of tools for interacting with The Graph.
+
+## Installing
+
+```sh
+npm install @geoprotocol/geo-sdk
+```
+
+## Overview
+
+### Data flow
+
+Data in The Graph lives both offchain and onchain. This data is written to IPFS, and the resulting content identitifier is then posted onchain before being read by the indexing stack. After the indexer finishes processing the data it's exposed by the API.
+![CleanShot 2025-01-22 at 10 51 23@2x](https://github.com/user-attachments/assets/f0cee8e0-43f9-4663-a2e7-54de6d962115)
+
+### Spaces
+
+On The Graph, knowledge is organized into spaces. Anyone can create a space for a community, project or individual. Spaces are organized onchain into a set of multiple smart contracts. These smart contracts represent the space itself, its data and its governance process. Depending on which onchain actions you're taking you might be interacting with one or more of these smart contracts.
+
+### Relations
+
+Relations describe the edges within the graph. Relations are themselves entities that include details about the relationship. For example a Company can have Team Members. Each Team Member relation can have an attribute describing when the person joined the team. This is a model that is commonly called a property graph.
+
+### Entities
+
+An entity is a unique identifier representing a person, a place, an idea, a concept, or anything else. Entities are comprised of triples and relations which provide semantic meaning as to what the entity _is_. An entity's data can be composed from multiple spaces at once. This property is what enables pluralism within The Graph.
+
+[More about entities and knowledge graphs](https://www.geobrowser.io/space/6tfhqywXtteatMeGUtd5EB/XYo6aR3VqFQSEcf6AeTikW)
+
+[More about pluralism](https://www.geobrowser.io/space/6tfhqywXtteatMeGUtd5EB/5WHP8BuoCdSiqtfy87SYWG)
+
+### Ops and edits
+
+Data in The Graph is stored as an Op (operation). Ops represent a set of changes applied to entities. A change could be setting or deleting a triple or a relation. Both triples and relations are represented as Ops.
+
+When writing data, these ops are grouped into a logical set called an "Edit." An Edit has a name, authors, and other metadata to represent the set of changes. This edit is then encoded into a binary representation for storage efficiency.
+
+[Ops and edits in GRC-20](https://github.com/yanivtal/graph-improvement-proposals/blob/new-ops/grcs/0020-knowledge-graph.md#101-operations-op)
+
+## Using
+
+### Unique IDs
+
+Entities throughout The Graph are referenced via globally unique identifiers. The SDK exposes APIs for creating these IDs.
+
+```ts
+import { Id } from "@geoprotocol/geo-sdk";
+
+const newId = Id.generate();
+```
+
+### Creating properties, types and entities
+
+Working with triple and relations ops is a low level API and give you maximum flexibility. In order to ease the process of creating and updating data, the library also exports APIs for creating properties, types and entities.
+
+```ts
+import { Graph } from '@geoprotocol/geo-sdk';
+
+// create a property
+const propertyResult = Graph.createProperty({
+  name: 'name of the property',
+  dataType: 'TEXT', // BOOLEAN | INT64 | FLOAT64 | DECIMAL | TEXT | BYTES | DATE | TIME | DATETIME | SCHEDULE | POINT | EMBEDDING | RELATION
+});
+
+// create a type
+const { id: personTypeId, ops: createPersonTypeOps } = Graph.createType({
+  name: 'name of the type',
+  properties: […listOfPropertyIds],
+});
+
+// create an image
+const { id: imageId, ops: createImageOps } = await Graph.createImage({
+  url: 'https://example.com/image.png',
+  // blob: new Blob([fs.readFileSync(path.join(__dirname, 'cover.png'))], { type: 'image/png' });
+});
+
+// create an entity
+const { id: restaurantId, ops: createRestaurantOps } = Graph.createEntity({
+  name: 'name of the entity',
+  description: 'description of the entity',
+  types: […listOfTypeIds],
+  cover: imageId,
+  values: [
+    {
+      property: propertyId,
+      type: 'text',
+      value: 'value of the property',
+    }
+  ],
+  relations: {
+    // relation property
+    [relationPropertyId]: {
+      toEntity: 'id of the entity',
+      id: 'id of the relation', // optional
+      position: positionString, // optional
+    },
+  },
+});
+```
+
+#### Typed values
+
+Values are passed as typed objects with a `type` field that determines the value format:
+
+```ts
+import { Graph, Id } from "@geoprotocol/geo-sdk";
+
+const { id: personId, ops: createPersonOps } = Graph.createEntity({
+  values: [
+    // Text value (with optional language)
+    {
+      property: someTextPropertyId,
+      type: "text",
+      value: "Hello",
+      language: Id("dad6e52a5e944e559411cfe3a3c3ea64"), // optional
+    },
+    // Number value (with optional unit)
+    {
+      property: someNumberPropertyId,
+      type: "float",
+      value: 42.5,
+      unit: Id("016c9b1cd8a84e4d9e844e40878bb235"), // optional
+    },
+    // Boolean value
+    {
+      property: someBooleanPropertyId,
+      type: "bool",
+      value: true,
+    },
+    // Point value (with optional altitude)
+    {
+      property: somePointPropertyId,
+      type: "point",
+      lon: -122.4194,
+      lat: 37.7749,
+      alt: 10.5, // optional
+    },
+    // Date value (ISO 8601 format: YYYY-MM-DD)
+    {
+      property: someDatePropertyId,
+      type: "date",
+      value: "2024-01-15",
+    },
+    // Time value (ISO 8601 format with timezone)
+    {
+      property: someTimePropertyId,
+      type: "time",
+      value: "14:30:00Z",
+    },
+    // Datetime value (ISO 8601 combined format)
+    {
+      property: someDatetimePropertyId,
+      type: "datetime",
+      value: "2024-01-15T14:30:00Z",
+    },
+    // Schedule value (iCalendar RRULE format)
+    {
+      property: someSchedulePropertyId,
+      type: "schedule",
+      value: "FREQ=WEEKLY;BYDAY=MO,WE,FR",
+    },
+  ],
+});
+```
+
+#### Example Flow
+
+```ts
+import { Graph, type Op } from "@geoprotocol/geo-sdk";
+
+const ops: Array<Op> = [];
+
+// create an age property
+const { id: agePropertyId, ops: createAgePropertyOps } = Graph.createProperty({
+  dataType: "INTEGER",
+  name: "Age",
+});
+ops.push(...createAgePropertyOps);
+
+// create a likes property
+const { id: likesPropertyId, ops: createLikesPropertyOps } =
+  Graph.createProperty({
+    dataType: "RELATION",
+    name: "Likes",
+  });
+ops.push(...createLikesPropertyOps);
+
+// create a person type
+const { id: personTypeId, ops: createPersonTypeOps } = Graph.createType({
+  name: "Person",
+  cover: personCoverId,
+  properties: [agePropertyId, likesPropertyId],
+});
+ops.push(...createPersonTypeOps);
+
+// create an restaurant cover image
+const { id: restaurantCoverId, ops: createRestaurantCoverOps } =
+  await Graph.createImage({
+    url: "https://example.com/image.png",
+  });
+ops.push(...createRestaurantCoverOps);
+
+// create a restaurant entity with a website property
+const restaurantTypeId = "A9QizqoXSqjfPUBjLoPJa2";
+const { id: restaurantId, ops: createRestaurantOps } = Graph.createEntity({
+  name: "Yum Yum",
+  description: "A restaurant serving fusion cuisine",
+  cover: restaurantCoverId,
+  types: [restaurantTypeId],
+  values: [
+    {
+      property: WEBSITE_PROPERTY,
+      type: "text",
+      value: "https://example.com",
+    },
+  ],
+});
+ops.push(...createRestaurantOps);
+
+// create a person cover image
+const { id: personCoverId, ops: createPersonCoverOps } =
+  await Graph.createImage({
+    url: "https://example.com/avatar.png",
+  });
+ops.push(...createPersonCoverOps);
+
+// create a person entity with a likes relation to the restaurant entity
+const { id: personId, ops: createPersonOps } = Graph.createEntity({
+  name: "Jane Doe",
+  types: [personTypeId],
+  cover: personCoverId,
+  values: [
+    {
+      property: agePropertyId,
+      type: "float",
+      value: 42,
+    },
+  ],
+  relations: {
+    [likesPropertyId]: {
+      toEntity: restaurantId,
+    },
+  },
+});
+ops.push(...createPersonOps);
+```
+
+### Publishing an edit onchain using your Geo Account
+
+The Geo Genesis browser uses a smart account associated with your account to publish edits. There may be situations where you want to use the same account in your code as you do on Geo Genesis. In order to get the smart account wallet client you can use the `getSmartAccountWalletClient` function.
+
+To use `getSmartAccountWalletClient` you'll need the private key associated with your Geo account. You can get your private key using https://www.geobrowser.io/export-wallet.
+
+Transaction costs from your smart account will be sponsored by the Geo team for the duration of the early access period. Eventually you will need to provide your own API key or provide funds to your smart account.
+
+```ts
+import { getSmartAccountWalletClient } from "@geoprotocol/geo-sdk";
+
+// IMPORTANT: Be careful with your private key. Don't commit it to version control.
+// You can get your private key using https://www.geobrowser.io/export-wallet
+const privateKey = `0x${privateKeyFromGeoWallet}`;
+const smartAccountWalletClient = await getSmartAccountWalletClient({
+  privateKey,
+  // rpcUrl, // optional
+});
+```
+
+### Personal Spaces
+
+Personal spaces are owned by a single address and don't require voting for governance. The SDK provides a `personalSpace` module with helper functions for creating and publishing to personal spaces.
+
+#### Creating a personal space
+
+```ts
+import { personalSpace, getWalletClient } from "@geoprotocol/geo-sdk";
+
+const walletClient = await getWalletClient({
+  privateKey: addressPrivateKey,
+});
+
+// Get the calldata for creating a personal space
+const { to, calldata } = personalSpace.createSpace();
+
+// Submit the transaction
+const txHash = await walletClient.sendTransaction({
+  account: walletClient.account,
+  to,
+  data: calldata,
+});
+```
+
+## Full Publishing Flow with Smart Account
+
+This example shows the complete flow for publishing an edit using a Geo smart account (Safe with Pimlico paymaster) on testnet. Gas is sponsored, so no testnet ETH is required.
+
+The smart account address must already have a personal space. You can create one via the [Geo Genesis browser](https://www.geobrowser.io).
+
+```ts
+import { createPublicClient, type Hex, http } from "viem";
+import {
+  Graph,
+  personalSpace,
+  getSmartAccountWalletClient,
+  TESTNET_RPC_URL,
+} from "@geoprotocol/geo-sdk";
+import { SpaceRegistryAbi } from "@geoprotocol/geo-sdk/abis";
+import { TESTNET } from "@geoprotocol/geo-sdk/contracts";
+
+// IMPORTANT: Be careful with your private key. Don't commit it to version control.
+// You can get your private key using https://www.geobrowser.io/export-wallet
+const privateKey = `0x${privateKeyFromGeoWallet}` as `0x${string}`;
+
+// Get smart account wallet client (Safe + Pimlico paymaster)
+const smartAccount = await getSmartAccountWalletClient({ privateKey });
+const smartAccountAddress = smartAccount.account.address;
+
+// Check if a personal space exists for this smart account address
+const hasExistingSpace = await personalSpace.hasSpace({
+  address: smartAccountAddress,
+});
+if (!hasExistingSpace) {
+  throw new Error("No personal space found for this smart account address.");
+}
+
+const publicClient = createPublicClient({
+  transport: http(TESTNET_RPC_URL),
+});
+
+// Look up the space ID for this smart account address
+const spaceIdHex = (await publicClient.readContract({
+  address: TESTNET.SPACE_REGISTRY_ADDRESS,
+  abi: SpaceRegistryAbi,
+  functionName: "addressToSpaceId",
+  args: [smartAccountAddress],
+})) as Hex;
+
+// Convert bytes16 hex to UUID string (without dashes)
+const spaceId = spaceIdHex.slice(2, 34).toLowerCase();
+console.log("spaceId", spaceId);
+
+// Create an entity
+const { ops, id: entityId } = Graph.createEntity({
+  name: "Test Entity",
+});
+console.log("entityId", entityId);
+
+// Publish to IPFS and get calldata for on-chain submission
+const { cid, editId, to, calldata } = await personalSpace.publishEdit({
+  name: "Test Edit",
+  spaceId,
+  ops,
+  author: smartAccountAddress,
+  network: "TESTNET",
+});
+console.log("cid", cid);
+console.log("editId", editId);
+
+// Send transaction via smart account (account and chain are baked in)
+const txHash = await smartAccount.sendTransaction({
+  to,
+  data: calldata,
+});
+console.log("txHash", txHash);
+
+const receipt = await publicClient.waitForTransactionReceipt({
+  hash: txHash,
+});
+console.log("Successfully published edit to space", spaceId);
+```
+
+## Full Publishing Flow (EOA Wallet)
+
+This example shows the complete flow for creating a personal space and publishing an edit on testnet using the `personalSpace` module with an EOA wallet.
+
+```ts
+import { createPublicClient, type Hex, http } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import {
+  Graph,
+  personalSpace,
+  getWalletClient,
+  TESTNET_RPC_URL,
+} from "@geoprotocol/geo-sdk";
+import { SpaceRegistryAbi } from "@geoprotocol/geo-sdk/abis";
+import { TESTNET } from "@geoprotocol/geo-sdk/contracts";
+
+// IMPORTANT: Be careful with your private key. Don't commit it to version control.
+// You can get your private key using https://www.geobrowser.io/export-wallet
+const addressPrivateKey = "0xTODO" as `0x${string}`;
+const { address } = privateKeyToAccount(addressPrivateKey);
+
+// Take the address and enter it in Faucet to get some testnet ETH https://faucet.conduit.xyz/geo-test-zc16z3tcvf
+
+// Get wallet client for testnet
+const walletClient = await getWalletClient({
+  privateKey: addressPrivateKey,
+});
+
+const account = walletClient.account;
+
+const publicClient = createPublicClient({
+  transport: http(TESTNET_RPC_URL),
+});
+
+// Check if a personal space already exists for this address
+const hasExistingSpace = await personalSpace.hasSpace({
+  address: account.address,
+});
+
+// Create a personal space if one doesn't exist
+if (!hasExistingSpace) {
+  console.log("Creating personal space...");
+
+  const { to, calldata } = personalSpace.createSpace();
+
+  const createSpaceTxHash = await walletClient.sendTransaction({
+    account: walletClient.account,
+    to,
+    data: calldata,
+  });
+
+  await publicClient.waitForTransactionReceipt({ hash: createSpaceTxHash });
+}
+
+// Look up the space ID
+const spaceIdHex = (await publicClient.readContract({
+  address: TESTNET.SPACE_REGISTRY_ADDRESS,
+  abi: SpaceRegistryAbi,
+  functionName: "addressToSpaceId",
+  args: [account.address],
+})) as Hex;
+
+// Convert bytes16 hex to UUID string (without dashes)
+const spaceId = spaceIdHex.slice(2, 34).toLowerCase();
+console.log("spaceId", spaceId);
+
+// Create an entity with some data
+const { ops, id: entityId } = Graph.createEntity({
+  name: "Test Entity",
+  description: "Created via SDK",
+});
+console.log("entityId", entityId);
+
+// Publish to IPFS and get calldata for on-chain submission
+const { cid, editId, to, calldata } = await personalSpace.publishEdit({
+  name: "Test Edit",
+  spaceId,
+  ops,
+  author: account.address,
+  network: "TESTNET",
+});
+console.log("cid", cid);
+console.log("editId", editId);
+
+// Submit the edit on-chain
+const publishTxHash = await walletClient.sendTransaction({
+  account: walletClient.account,
+  to,
+  data: calldata,
+});
+console.log("publishTxHash", publishTxHash);
+
+const publishReceipt = await publicClient.waitForTransactionReceipt({
+  hash: publishTxHash,
+});
+console.log("Successfully published edit to space", spaceId);
+```

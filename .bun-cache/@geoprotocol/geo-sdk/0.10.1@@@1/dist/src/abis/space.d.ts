@@ -1,0 +1,359 @@
+export declare const abi: readonly [{
+    readonly inputs: readonly [{
+        readonly internalType: "address";
+        readonly name: "dao";
+        readonly type: "address";
+    }, {
+        readonly internalType: "address";
+        readonly name: "where";
+        readonly type: "address";
+    }, {
+        readonly internalType: "address";
+        readonly name: "who";
+        readonly type: "address";
+    }, {
+        readonly internalType: "bytes32";
+        readonly name: "permissionId";
+        readonly type: "bytes32";
+    }];
+    readonly name: "DaoUnauthorized";
+    readonly type: "error";
+}, {
+    readonly inputs: readonly [];
+    readonly name: "InvalidAddress";
+    readonly type: "error";
+}, {
+    readonly anonymous: false;
+    readonly inputs: readonly [{
+        readonly indexed: false;
+        readonly internalType: "address";
+        readonly name: "previousAdmin";
+        readonly type: "address";
+    }, {
+        readonly indexed: false;
+        readonly internalType: "address";
+        readonly name: "newAdmin";
+        readonly type: "address";
+    }];
+    readonly name: "AdminChanged";
+    readonly type: "event";
+}, {
+    readonly anonymous: false;
+    readonly inputs: readonly [{
+        readonly indexed: true;
+        readonly internalType: "address";
+        readonly name: "beacon";
+        readonly type: "address";
+    }];
+    readonly name: "BeaconUpgraded";
+    readonly type: "event";
+}, {
+    readonly anonymous: false;
+    readonly inputs: readonly [{
+        readonly indexed: false;
+        readonly internalType: "address";
+        readonly name: "dao";
+        readonly type: "address";
+    }, {
+        readonly indexed: false;
+        readonly internalType: "string";
+        readonly name: "flagContentUri";
+        readonly type: "string";
+    }];
+    readonly name: "ContentFlagged";
+    readonly type: "event";
+}, {
+    readonly anonymous: false;
+    readonly inputs: readonly [{
+        readonly indexed: false;
+        readonly internalType: "address";
+        readonly name: "dao";
+        readonly type: "address";
+    }, {
+        readonly indexed: false;
+        readonly internalType: "string";
+        readonly name: "editsContentUri";
+        readonly type: "string";
+    }, {
+        readonly indexed: false;
+        readonly internalType: "bytes";
+        readonly name: "editsMetadata";
+        readonly type: "bytes";
+    }];
+    readonly name: "EditsPublished";
+    readonly type: "event";
+}, {
+    readonly anonymous: false;
+    readonly inputs: readonly [{
+        readonly indexed: false;
+        readonly internalType: "uint8";
+        readonly name: "version";
+        readonly type: "uint8";
+    }];
+    readonly name: "Initialized";
+    readonly type: "event";
+}, {
+    readonly anonymous: false;
+    readonly inputs: readonly [{
+        readonly indexed: false;
+        readonly internalType: "address";
+        readonly name: "dao";
+        readonly type: "address";
+    }, {
+        readonly indexed: false;
+        readonly internalType: "address";
+        readonly name: "payer";
+        readonly type: "address";
+    }, {
+        readonly indexed: false;
+        readonly internalType: "uint256";
+        readonly name: "_txId";
+        readonly type: "uint256";
+    }];
+    readonly name: "PayerSet";
+    readonly type: "event";
+}, {
+    readonly anonymous: false;
+    readonly inputs: readonly [{
+        readonly indexed: false;
+        readonly internalType: "address";
+        readonly name: "dao";
+        readonly type: "address";
+    }, {
+        readonly indexed: false;
+        readonly internalType: "address";
+        readonly name: "subspaceDao";
+        readonly type: "address";
+    }];
+    readonly name: "SubspaceAccepted";
+    readonly type: "event";
+}, {
+    readonly anonymous: false;
+    readonly inputs: readonly [{
+        readonly indexed: false;
+        readonly internalType: "address";
+        readonly name: "dao";
+        readonly type: "address";
+    }, {
+        readonly indexed: false;
+        readonly internalType: "address";
+        readonly name: "subspaceDao";
+        readonly type: "address";
+    }];
+    readonly name: "SubspaceRemoved";
+    readonly type: "event";
+}, {
+    readonly anonymous: false;
+    readonly inputs: readonly [{
+        readonly indexed: false;
+        readonly internalType: "address";
+        readonly name: "dao";
+        readonly type: "address";
+    }, {
+        readonly indexed: false;
+        readonly internalType: "address";
+        readonly name: "predecessorSpace";
+        readonly type: "address";
+    }];
+    readonly name: "SuccessorSpaceCreated";
+    readonly type: "event";
+}, {
+    readonly anonymous: false;
+    readonly inputs: readonly [{
+        readonly indexed: true;
+        readonly internalType: "address";
+        readonly name: "implementation";
+        readonly type: "address";
+    }];
+    readonly name: "Upgraded";
+    readonly type: "event";
+}, {
+    readonly inputs: readonly [];
+    readonly name: "ARB_SYS";
+    readonly outputs: readonly [{
+        readonly internalType: "contract ArbSys";
+        readonly name: "";
+        readonly type: "address";
+    }];
+    readonly stateMutability: "view";
+    readonly type: "function";
+}, {
+    readonly inputs: readonly [];
+    readonly name: "UPGRADE_PLUGIN_PERMISSION_ID";
+    readonly outputs: readonly [{
+        readonly internalType: "bytes32";
+        readonly name: "";
+        readonly type: "bytes32";
+    }];
+    readonly stateMutability: "view";
+    readonly type: "function";
+}, {
+    readonly inputs: readonly [{
+        readonly internalType: "address";
+        readonly name: "_subspaceDao";
+        readonly type: "address";
+    }];
+    readonly name: "acceptSubspace";
+    readonly outputs: readonly [];
+    readonly stateMutability: "nonpayable";
+    readonly type: "function";
+}, {
+    readonly inputs: readonly [];
+    readonly name: "dao";
+    readonly outputs: readonly [{
+        readonly internalType: "contract IDAO";
+        readonly name: "";
+        readonly type: "address";
+    }];
+    readonly stateMutability: "view";
+    readonly type: "function";
+}, {
+    readonly inputs: readonly [{
+        readonly internalType: "string";
+        readonly name: "_flagContentUri";
+        readonly type: "string";
+    }];
+    readonly name: "flagContent";
+    readonly outputs: readonly [];
+    readonly stateMutability: "nonpayable";
+    readonly type: "function";
+}, {
+    readonly inputs: readonly [];
+    readonly name: "implementation";
+    readonly outputs: readonly [{
+        readonly internalType: "address";
+        readonly name: "";
+        readonly type: "address";
+    }];
+    readonly stateMutability: "view";
+    readonly type: "function";
+}, {
+    readonly inputs: readonly [{
+        readonly internalType: "contract IDAO";
+        readonly name: "_dao";
+        readonly type: "address";
+    }, {
+        readonly internalType: "address";
+        readonly name: "_paymentManager";
+        readonly type: "address";
+    }, {
+        readonly internalType: "string";
+        readonly name: "_firstEditsContentUri";
+        readonly type: "string";
+    }, {
+        readonly internalType: "bytes";
+        readonly name: "_firstEditsMetadata";
+        readonly type: "bytes";
+    }, {
+        readonly internalType: "address";
+        readonly name: "_predecessorSpace";
+        readonly type: "address";
+    }];
+    readonly name: "initialize";
+    readonly outputs: readonly [];
+    readonly stateMutability: "nonpayable";
+    readonly type: "function";
+}, {
+    readonly inputs: readonly [];
+    readonly name: "paymentManager";
+    readonly outputs: readonly [{
+        readonly internalType: "address";
+        readonly name: "";
+        readonly type: "address";
+    }];
+    readonly stateMutability: "view";
+    readonly type: "function";
+}, {
+    readonly inputs: readonly [];
+    readonly name: "pluginType";
+    readonly outputs: readonly [{
+        readonly internalType: "enum IPlugin.PluginType";
+        readonly name: "";
+        readonly type: "uint8";
+    }];
+    readonly stateMutability: "pure";
+    readonly type: "function";
+}, {
+    readonly inputs: readonly [];
+    readonly name: "proxiableUUID";
+    readonly outputs: readonly [{
+        readonly internalType: "bytes32";
+        readonly name: "";
+        readonly type: "bytes32";
+    }];
+    readonly stateMutability: "view";
+    readonly type: "function";
+}, {
+    readonly inputs: readonly [{
+        readonly internalType: "string";
+        readonly name: "_editsContentUri";
+        readonly type: "string";
+    }, {
+        readonly internalType: "bytes";
+        readonly name: "_editsMetadata";
+        readonly type: "bytes";
+    }];
+    readonly name: "publishEdits";
+    readonly outputs: readonly [];
+    readonly stateMutability: "nonpayable";
+    readonly type: "function";
+}, {
+    readonly inputs: readonly [{
+        readonly internalType: "address";
+        readonly name: "_subspaceDao";
+        readonly type: "address";
+    }];
+    readonly name: "removeSubspace";
+    readonly outputs: readonly [];
+    readonly stateMutability: "nonpayable";
+    readonly type: "function";
+}, {
+    readonly inputs: readonly [{
+        readonly internalType: "address";
+        readonly name: "_payer";
+        readonly type: "address";
+    }];
+    readonly name: "setPayer";
+    readonly outputs: readonly [];
+    readonly stateMutability: "nonpayable";
+    readonly type: "function";
+}, {
+    readonly inputs: readonly [{
+        readonly internalType: "bytes4";
+        readonly name: "_interfaceId";
+        readonly type: "bytes4";
+    }];
+    readonly name: "supportsInterface";
+    readonly outputs: readonly [{
+        readonly internalType: "bool";
+        readonly name: "";
+        readonly type: "bool";
+    }];
+    readonly stateMutability: "view";
+    readonly type: "function";
+}, {
+    readonly inputs: readonly [{
+        readonly internalType: "address";
+        readonly name: "newImplementation";
+        readonly type: "address";
+    }];
+    readonly name: "upgradeTo";
+    readonly outputs: readonly [];
+    readonly stateMutability: "nonpayable";
+    readonly type: "function";
+}, {
+    readonly inputs: readonly [{
+        readonly internalType: "address";
+        readonly name: "newImplementation";
+        readonly type: "address";
+    }, {
+        readonly internalType: "bytes";
+        readonly name: "data";
+        readonly type: "bytes";
+    }];
+    readonly name: "upgradeToAndCall";
+    readonly outputs: readonly [];
+    readonly stateMutability: "payable";
+    readonly type: "function";
+}];
+//# sourceMappingURL=space.d.ts.map
