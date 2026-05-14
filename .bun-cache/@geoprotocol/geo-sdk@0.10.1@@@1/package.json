@@ -1,0 +1,47 @@
+{
+  "name": "@geoprotocol/geo-sdk",
+  "version": "0.10.1",
+  "license": "MIT",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "main": "./dist/index.js",
+  "ascMain": "./dist/index.js",
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    "./package.json": "./package.json",
+    ".": "./dist/index.js",
+    "./proto": "./dist/proto.js",
+    "./contracts": "./dist/contracts.js",
+    "./abis": "./dist/abis.js"
+  },
+  "dependencies": {
+    "@geoprotocol/grc-20": "^0.4.0",
+    "effect": "^3.17.13",
+    "fflate": "^0.8.2",
+    "fractional-indexing-jittered": "^1.0.0",
+    "image-size": "^2.0.2",
+    "permissionless": "^0.2.35",
+    "uuid": "^13.0.0",
+    "viem": "^2.37.6"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.2.4",
+    "@changesets/cli": "^2.29.7",
+    "@types/uuid": "^11.0.0",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  },
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build": "tsc",
+    "test": "vitest",
+    "lint": "biome check",
+    "lint:fix": "biome check --write --unsafe",
+    "create-private-key": "node --experimental-strip-types create-private-key.ts",
+    "deploy": "pnpm clean && pnpm build && pnpm changeset publish",
+    "bump": "pnpm changeset version"
+  }
+}

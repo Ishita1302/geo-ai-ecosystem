@@ -1,14 +1,20 @@
 [
   {
-    "name": "Vitalik Buterin",
-    "description": "Co-founder of Ethereum, a decentralized platform for smart contracts and decentralized applications.",
-    "web_url": "https://vitalik.eth.limo",
-    "birth_date": "1994-01-31",
-    "topics": ["Blockchain", "Smart Contracts"]
+    "name": "Andrej Karpathy",
+    "description": "A prominent computer scientist known for his work in deep learning and computer vision, formerly Director of AI at Tesla and a founding member of OpenAI.",
+    "web_url": "https://karpathy.ai",
+    "topics": ["Deep Learning", "Computer Vision"]
   },
   {
-    "name": "Satoshi Nakamoto",
-    "description": "The pseudonymous creator of Bitcoin, the first decentralized cryptocurrency and blockchain.",
-    "topics": ["Blockchain"]
+    "name": "Yann LeCun",
+    "description": "A computer scientist and Turing Award winner known for his work in convolutional neural networks and deep learning, currently Chief AI Scientist at Meta.",
+    "web_url": "http://yann.lecun.com",
+    "topics": ["Deep Learning", "Machine Learning"]
+  },
+  {
+    "name": "Andrew Ng",
+    "description": "A global leader in AI, co-founder of Coursera and Google Brain, and adjunct professor at Stanford University.",
+    "web_url": "https://www.andrewng.org",
+    "topics": ["Machine Learning", "Deep Learning"]
   }
 ]

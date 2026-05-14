@@ -1,72 +1,90 @@
-/**
- * Geo SDK Demo — Publishing Entities to the Knowledge Graph
- *
- * This script demonstrates how to:
- *   1. Read entity data from JSON files
- *   2. Convert them into Graph operations using the Geo SDK
- *   3. Publish the operations to a space on the Geo testnet
- *
- * Usage:
- *   bun run 02_publish_demo.ts
- *
- * Prerequisites:
- *   - Set DEMO_SPACE_ID in .env to the space you want to publish to
- *   - Set PK_SW to the private key of your smart wallet
- */
+
 
 import * as fs from "fs";
 import dotenv from "dotenv";
 import { Graph, Position, type Op, ContentIds } from "@geoprotocol/geo-sdk";
-import { printOps, publishOps } from "./src/functions";
+import { gql, printOps, publishOps } from "./src/functions";
 import { TYPES, PROPERTIES, QUERY_DATA_SOURCE, COLLECTION_DATA_SOURCE, VIEWS } from "./src/constants";
 
 dotenv.config();
 
-// ─── Property Registry ──────────────────────────────────────────────────────
-// Maps JSON field names to their property ID and value type.
-// To add a new property, just add an entry here — no other code changes needed.
+// ─── CLI Flags ───────────────────────────────────────────────────────────────
+const DRY_RUN = process.argv.includes("--dry-run");
+if (DRY_RUN) {
+  console.log("\n🛡️  DRY-RUN MODE — no transactions will be published.\n");
+}
 
-const VALUE_PROPERTIES: Record<string, { id: string; type: "text" | "date" }> = {
-  // Original lowercase keys (for people.json, topics.json)
-  web_url:             { id: PROPERTIES.web_url,             type: "text" },
-  birth_date:          { id: PROPERTIES.birth_date,          type: "date" },
-  date_founded:        { id: PROPERTIES.date_founded,        type: "date" },
+const VALUE_PROPERTIES: Record<string, { id: string; type: "text" | "date" | "integer" }> = {
 
-  // Capitalized keys (for projects_200.json)
-  "Web URL":             { id: PROPERTIES.web_url,             type: "text" },
-  "Birth Date":          { id: PROPERTIES.birth_date,          type: "date" },
-  "Date Founded":        { id: PROPERTIES.date_founded,        type: "date" },
-  "GitHub stars":        { id: PROPERTIES.github_stars,        type: "text" },
-  "Software licenses":   { id: PROPERTIES.software_licenses,   type: "text" },
-  "Primary language":    { id: PROPERTIES.primary_language,    type: "text" },
-  "Categories":          { id: PROPERTIES.categories,          type: "text" },
-  "Backed by":           { id: PROPERTIES.backed_by,           type: "text" },
-  "First release":       { id: PROPERTIES.first_release,       type: "date" },
-  "Latest version":      { id: PROPERTIES.latest_version,      type: "text" },
+  web_url: { id: PROPERTIES.web_url, type: "text" },
+  birth_date: { id: PROPERTIES.birth_date, type: "date" },
+  date_founded: { id: PROPERTIES.date_founded, type: "date" },
+
+  // Capitalized keys (for project_200_corrected.json)
+  "Web URL": { id: PROPERTIES.web_url, type: "text" },
+  "Birth Date": { id: PROPERTIES.birth_date, type: "date" },
+  "Date Founded": { id: PROPERTIES.date_founded, type: "date" },
+  "Latest version": { id: PROPERTIES.latest_version, type: "text" },
   "Latest release date": { id: PROPERTIES.latest_release_date, type: "date" },
   "Actively maintained": { id: PROPERTIES.actively_maintained, type: "text" },
-  "Contributors":        { id: PROPERTIES.contributors,        type: "text" },
+  "Categories": { id: PROPERTIES.categories, type: "text" },
+  "Backed by": { id: PROPERTIES.backed_by, type: "text" },
+  "Contributors": { id: PROPERTIES.contributors, type: "text" },
+  "Primary language": { id: PROPERTIES.primary_language, type: "text" },
+  "Software licenses": { id: PROPERTIES.software_licenses, type: "text" },
+  "GitHub stars": { id: PROPERTIES.github_stars, type: "integer" },
+  "First release": { id: PROPERTIES.first_release, type: "date" },
 };
 
-// Build a values array from any entity data object using the registry above.
-// Date values should be RFC 3339 strings (e.g. "2023-01-01") — the SDK parses them internally.
+const RELATION_PROPERTIES: Record<string, string> = {
+  "Contributors": PROPERTIES.contributors,
+  "Categories": PROPERTIES.categories,
+  "Backed by": PROPERTIES.backed_by,
+};
+
 function extractValues(data: Record<string, any>) {
   const values: any[] = [];
   for (const [field, meta] of Object.entries(VALUE_PROPERTIES)) {
+    // Skip fields that are intended as relations
+    if (RELATION_PROPERTIES[field] || field === "Topics") continue;
+
     if (data[field] != null) {
       let value = data[field];
-      
-      // Simple converter for "M/D/YYYY" to "YYYY-MM-DD"
-      if (meta.type === "date" && typeof value === "string" && value.includes("/")) {
-        const parts = value.split("/");
+
+      // Simple converter for "M/D/YY(YY)" or "M-D-YYYY" to "YYYY-MM-DD"
+      if (meta.type === "date" && typeof value === "string" && (value.includes("/") || value.includes("-"))) {
+        const separator = value.includes("/") ? "/" : "-";
+        const parts = value.split(separator);
         if (parts.length === 3) {
           const m = parts[0].padStart(2, "0");
           const d = parts[1].padStart(2, "0");
-          const y = parts[2];
-          value = `${y}-${m}-${d}`;
+          let y = parts[2];
+
+
+          if (y.length === 2) {
+            y = parseInt(y, 10) > 26 ? `19${y}` : `20${y}`;
+          }
+
+
+          if (y.length === 4 && m.length === 2 && d.length === 2) {
+            value = `${y}-${m}-${d}`;
+          } else {
+            console.warn(`    Warning: Invalid date format for field "${field}": ${data[field]}`);
+            continue;
+          }
         }
       }
-      
+
+
+      if (meta.id === PROPERTIES.github_stars && typeof value === "string") {
+        value = parseInt(value.replace(/,/g, ""), 10);
+      }
+
+      if (!meta.id) {
+        console.warn(`    Warning: Property ID is undefined for field "${field}". Skipping.`);
+        continue;
+      }
+
       values.push({ property: meta.id, type: meta.type, value });
     }
   }
@@ -75,17 +93,11 @@ function extractValues(data: Record<string, any>) {
 
 // ─── JSON Data Types ─────────────────────────────────────────────────────────
 
-type TopicData = {
+type PersonData = {
   name: string;
   description: string;
-};
-
-type PersonData = {
-  "Name": string;
-  "Description": string;
-  "Web URL"?: string;
-  "Birth Date"?: string;
-  "topics"?: string[];
+  web_url?: string;
+  birth_date?: string;
 };
 
 type ProjectData = {
@@ -103,138 +115,293 @@ type ProjectData = {
   "Latest release date"?: string;
   "Actively maintained"?: string;
   "Contributors"?: string;
-  "topics"?: string[];
+  "topics"?: string;
   "avatar_url"?: string;
   "blocks"?: string[];
 };
+
+// ─── Deduplication Helper ────────────────────────────────────────────────────
+
+/**
+ * Fetches all existing entities of a given type from the target space.
+ * Returns a Map of entity name → entity id for deduplication.
+ */
+async function fetchExistingEntities(
+  spaceId: string,
+  typeId: string,
+): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  const data = await gql(`{
+    entities(
+      spaceId: "${spaceId}"
+      typeId: "${typeId}"
+      first: 1000
+      filter: { name: { isNull: false } }
+    ) {
+      id
+      name
+    }
+  }`);
+
+  const entities: Array<{ id: string; name: string }> = data.entities ?? [];
+  for (const e of entities) {
+    map.set(e.name, e.id);
+  }
+
+  return map;
+}
+
+/**
+ * Queries the global API for an existing entity with that name and type.
+ * Returns the entity ID if found, otherwise null.
+ */
+async function queryGlobalEntity(name: string, typeId: string): Promise<string | null> {
+  const data = await gql(`{
+    entities(
+      first: 1
+      filter: { name: { is: "${name}" }, typeIds: { anyEqualTo: "${typeId}" } }
+    ) {
+      id
+    }
+  }`);
+  
+  if (data.entities && data.entities.length > 0) {
+    return data.entities[0].id;
+  }
+  return null;
+}
 
 // ─── Main: Build Entities & Publish ──────────────────────────────────────────
 
 async function main() {
   console.log("=== Geo SDK Demo: Publishing Entities ===\n");
 
+  const spaceId = process.env.DEMO_SPACE_ID;
+  if (!spaceId) throw new Error("DEMO_SPACE_ID not set in .env");
+
   // ── Step 1: Read JSON data ──────────────────────────────────────────────
   console.log("Step 1: Reading entity data from JSON files...");
 
-  const topics: TopicData[] = JSON.parse(
-    fs.readFileSync("./data_to_publish/topics.json", "utf-8")
-  );
   const people: PersonData[] = JSON.parse(
     fs.readFileSync("./data_to_publish/people.json", "utf-8")
   );
-  const projects: ProjectData[] = JSON.parse(
-    fs.readFileSync("./data_to_publish/projects_200.json", "utf-8")
+  const rawProjects: any[] = JSON.parse(
+    fs.readFileSync("./data_to_publish/project_200_corrected.json", "utf-8")
   );
 
-  console.log(`  Loaded: ${topics.length} topics, ${people.length} people, ${projects.length} projects\n`);
+
+  const projects: ProjectData[] = rawProjects.map((p) => {
+    const cleaned: any = {};
+    for (const [key, val] of Object.entries(p)) {
+      const cleanKey = key.trim();
+      const cleanVal = typeof val === "string" ? val.trim() : val;
+      cleaned[cleanKey] = cleanVal;
+    }
+
+    if (!cleaned.Name && cleaned.name) cleaned.Name = cleaned.name;
+    if (!cleaned.Description && cleaned.description) cleaned.Description = cleaned.description;
+    return cleaned;
+  });
+
+  console.log(`  Loaded: ${people.length} people, ${projects.length} projects\n`);
+
+  // ── Step 2: Fetch existing entities for deduplication ───────────────────
+  console.log("Step 2: Checking for existing entities in the target space...");
+
+  const existingProjects = await fetchExistingEntities(spaceId, TYPES.project);
+  const existingPeople = await fetchExistingEntities(spaceId, TYPES.person);
+
+  console.log(`  Found: ${existingProjects.size} projects, ${existingPeople.size} people in local space\n`);
 
   const allOps: Op[] = [];
 
-  // ── Step 2: Create Topic entities ───────────────────────────────────────
-  // Topics have no dependencies, so we create them first.
-  console.log("Step 2: Creating Topic entities...");
-
-  const topicIdsByName: Record<string, string> = {};
-
-  for (const topic of topics) {
-    const { id, ops } = Graph.createEntity({
-      name: topic.name,
-      description: topic.description,
-      types: [TYPES.topic],
-    });
-
-    topicIdsByName[topic.name] = id;
-    allOps.push(...ops);
-    console.log(`  Created topic: "${topic.name}" → ${id}`);
-  }
-
   // ── Step 3: Create Person entities ──────────────────────────────────────
-  // People can have relations to Topics.
   console.log("\nStep 3: Creating Person entities...");
 
+  // Pre-populate from existing entities in the space
   const personIdsByName: Record<string, string> = {};
+  for (const [name, id] of existingPeople) {
+    personIdsByName[name] = id;
+  }
 
   for (const person of people) {
-    const values = extractValues(person);
-
-    // Build topic relations
-    const topicRelations = (person.topics || [])
-      .filter((t) => topicIdsByName[t])
-      .map((t) => ({ toEntity: topicIdsByName[t] }));
-
-    const relations: Record<string, Array<{ toEntity: string }>> = {};
-    if (topicRelations.length > 0) {
-      relations[PROPERTIES.topics] = topicRelations;
+    if (personIdsByName[person.name]) {
+      console.log(`  Skipped (exists): "${person.name}" → ${personIdsByName[person.name]}`);
+      continue;
     }
 
+    const values = extractValues(person);
+
+    const relations: Record<string, Array<{ toEntity: string }>> = {};
+
     const { id, ops } = Graph.createEntity({
-      name: person.Name,
-      description: person.Description,
+      name: person.name,
+      description: person.description,
       types: [TYPES.person],
       values,
       relations,
     });
 
-    personIdsByName[person.Name] = id;
+    personIdsByName[person.name] = id;
     allOps.push(...ops);
-    console.log(`  Created person: "${person.Name}" → ${id}`);
+    console.log(`  Created person: "${person.name}" → ${id}`);
   }
 
   // ── Step 4: Create Project entities ─────────────────────────────────────
-  // Projects can have a date_founded and relations to Topics.
   console.log("\nStep 4: Creating Project entities...");
 
+  // Pre-populate from existing entities in the space
   const projectIdsByName: Record<string, string> = {};
+  for (const [name, id] of existingProjects) {
+    projectIdsByName[name] = id;
+  }
+
+  const categoryIdsByName: Record<string, string> = {};
+  const organizationIdsByName: Record<string, string> = {};
+
+  const newlyCreatedProjectNames = new Set<string>();
 
   for (const project of projects) {
+    const projectName = project.Name || "Untitled Project";
+    if (projectIdsByName[projectName]) {
+      console.log(`  Skipped (exists): "${projectName}" → ${projectIdsByName[projectName]}`);
+      continue;
+    }
+
     const values = extractValues(project);
 
-    const topicRelations = (project.topics || [])
-      .filter((t) => topicIdsByName[t])
-      .map((t) => ({ toEntity: topicIdsByName[t] }));
+    const relations: Record<string, any[]> = {};
 
-    const relations: Record<string, Array<{ toEntity: string }>> = {};
-    if (topicRelations.length > 0) {
-      relations[PROPERTIES.topics] = topicRelations;
+    // ── Categories → Topic entities ──────────────────────────────────────
+    if (project.Categories) {
+      const categoryNames = project.Categories.split(/[,&]|\band\b/)
+        .map((name: string) => name.trim())
+        .filter((name: string) => name.length > 0);
+
+      const categoryRelations: Array<{ toEntity: string }> = [];
+
+      for (const name of categoryNames) {
+        let categoryId = categoryIdsByName[name];
+        if (!categoryId) {
+          const globalId = await queryGlobalEntity(name, TYPES.topic);
+          if (globalId) {
+            categoryId = globalId;
+            console.log(`  Linked to global Topic: "${name}" → ${categoryId}`);
+          } else {
+            const { id: newCategoryId, ops: catOps } = Graph.createEntity({
+              name: name,
+              types: [TYPES.topic],
+            });
+            categoryId = newCategoryId;
+            allOps.push(...catOps);
+            console.log(`  Created local Topic: "${name}" → ${categoryId}`);
+          }
+          categoryIdsByName[name] = categoryId;
+        }
+        categoryRelations.push({ toEntity: categoryId });
+      }
+
+      if (categoryRelations.length > 0) {
+        relations[PROPERTIES.categories] = categoryRelations;
+      }
+    }
+
+    // ── Backed by → Organization (Company) entities ──────────────────────
+    if (project["Backed by"]) {
+      const backedByNames = project["Backed by"].split(/[,&]|\band\b/)
+        .map((name: string) => name.trim())
+        .filter((name: string) => name.length > 0);
+
+      const backedByRelations: Array<{ toEntity: string }> = [];
+
+      for (const name of backedByNames) {
+        let orgId = organizationIdsByName[name];
+
+        if (!orgId) {
+          const globalId = await queryGlobalEntity(name, TYPES.organization);
+          if (globalId) {
+            orgId = globalId;
+            console.log(`  Linked to global Organization: "${name}" → ${orgId}`);
+          } else {
+            const { id: newOrgId, ops: orgOps } = Graph.createEntity({
+              name: name,
+              types: [TYPES.organization],
+            });
+            orgId = newOrgId;
+            allOps.push(...orgOps);
+            console.log(`  Created local Organization: "${name}" → ${orgId}`);
+          }
+          organizationIdsByName[name] = orgId;
+        }
+
+        backedByRelations.push({ toEntity: orgId });
+      }
+
+      if (backedByRelations.length > 0) {
+        relations[PROPERTIES.backed_by] = backedByRelations;
+      }
+    }
+
+    // ── Contributors → Person entities ───────────────────────────────────
+    if (project.Contributors) {
+      const contributorNames = project.Contributors.split(/[,&]|\band\b/)
+        .map((name: string) => name.trim())
+        .filter((name: string) => name.length > 0);
+
+      const contributorRelations: Array<{ toEntity: string }> = [];
+
+      for (const name of contributorNames) {
+        let personId = personIdsByName[name];
+
+        if (!personId) {
+          const { id: newPersonId, ops: personOps } = Graph.createEntity({
+            name: name,
+            types: [TYPES.person],
+          });
+          personId = newPersonId;
+          allOps.push(...personOps);
+          personIdsByName[name] = personId; // Cache for other projects
+          console.log(`  Created contributor: "${name}" → ${personId}`);
+        }
+
+        contributorRelations.push({ toEntity: personId });
+      }
+
+      if (contributorRelations.length > 0) {
+        relations[PROPERTIES.contributors] = contributorRelations;
+      }
     }
 
     const { id, ops } = Graph.createEntity({
-      name: project.Name,
-      description: project.Description,
+      name: projectName,
+      description: project.Description || "",
       types: [TYPES.project],
       values,
       relations,
     });
 
-    projectIdsByName[project.Name] = id;
+    projectIdsByName[projectName] = id;
+    newlyCreatedProjectNames.add(projectName);
     allOps.push(...ops);
-    console.log(`  Created project: "${project.Name}" → ${id}`);
+    console.log(`  Created project: "${projectName}" → ${id}`);
   }
 
-  // ── Step 5: Add Text Blocks to entities that have them ─────────────────
-  // Blocks are standalone entities attached to a parent via the Blocks
-  // relation. Each relation carries a `position` string for ordering
-  // (fractional indexing — positions sort lexicographically).
-  //
-  // Each line of content is its own Text Block entity:
-  //   - type:  Text Block  (76474f2f…)
-  //   - value: Markdown content  (e3e363d1…)  →  a single line / paragraph
-  //
-  // Every block gets its own Blocks relation from the parent entity,
-  // with a `position` string that controls rendering order.
-  // Position.generateBetween(after, null) produces a position that sorts
-  // after the given one.  We track the last position per entity so every
-  // block (text blocks first, then data blocks) is ordered correctly.
   console.log("\nStep 5: Adding Text Blocks from JSON data...");
 
   const lastPosByEntity: Record<string, string> = {};
   let pos: string;
 
   for (const project of projects) {
+    const projectName = project.Name || "Untitled Project";
     if (!project.blocks || project.blocks.length === 0) continue;
+    if (!newlyCreatedProjectNames.has(projectName)) {
+      console.log(`  Skipping blocks for existing project: "${projectName}"`);
+      continue;
+    }
 
-    const parentId = projectIdsByName[project.Name];
-    console.log(`  Adding ${project.blocks.length} text blocks to "${project.Name}"...`);
+    const parentId = projectIdsByName[projectName];
+    if (!parentId) continue;
+    console.log(`  Adding ${project.blocks.length} text blocks to "${projectName}"...`);
 
     for (const line of project.blocks) {
       const { id: blockId, ops: blockOps } = Graph.createEntity({
@@ -264,16 +431,18 @@ async function main() {
     }
   }
 
-  // ── 5b: Avatar Images ────────────────────────────────────────────────
-  // Graph.createImage() fetches the image, uploads it to IPFS, and returns
-  // an Image entity with the IPFS URL, width, and height set automatically.
-  // The entity's type is automatically set to Image (ba4e4146…).
 
   for (const project of projects) {
+    const projectName = project.Name || "Untitled Project";
     if (!project.avatar_url) continue;
+    if (!newlyCreatedProjectNames.has(projectName)) {
+      console.log(`\n  Skipping avatar for existing project: "${projectName}"`);
+      continue;
+    }
 
-    const parentId = projectIdsByName[project.Name];
-    console.log(`\n  Uploading avatar for "${project.Name}" to IPFS...`);
+    const parentId = projectIdsByName[projectName];
+    if (!parentId) continue;
+    console.log(`\n  Uploading avatar for "${projectName}" to IPFS...`);
 
     const { id: imageId, ops: imageOps, cid: imageCid } = await Graph.createImage({
       url: project.avatar_url,
@@ -292,112 +461,51 @@ async function main() {
     console.log(`  Attached image as avatar`);
   }
 
-  // ── Step 6: Add Data Blocks (Query + Collection) ──────────────────────────
-  // Data Blocks render structured results inside an entity page.
-  // There are two flavours:
-  //
-  //   Query Data Block   — a live, declarative query evaluated at render time.
-  //                         Defined by a JSON filter + the Query data source marker.
-  //
-  //   Collection Data Block — a fixed, hand-picked set of entities.
-  //                         Defined by Collection item relations + the Collection
-  //                         data source marker.
-  //
-  // Both are regular Data Block entities (type b8803a86…).
-  // A *View* (Table, List, Gallery, Bullets) can be set on the Blocks
-  // relation via the `entityRelations` parameter — this decorates the
-  // relation entity with a View relation.
-  console.log("\nStep 6: Adding Data Blocks (Query + Collection) to the first project...");
 
-  // ── 6a: Query Data Block — "Related Topics" ───────────────────────────
-  // This block renders all Topic-typed entities in the space at view time.
-  // The filter JSON mirrors what the Geo Browser stores natively:
-  //   { "filter": { "<TYPES property id>": { "is": "<Topic type id>" } } }
-  const queryFilter = JSON.stringify({
-    spaceId: { 
-      in: [process.env.DEMO_SPACE_ID]
-    },
-    filter: {
-      [PROPERTIES.types]: { is: TYPES.topic },
-    },
-  });
+  console.log("\nStep 6: Adding Data Blocks (Collection) to the first project...");
 
-  const { id: queryBlockId, ops: queryBlockOps } = Graph.createEntity({
-    name: "Related Topics",
-    types: [TYPES.data_block],
-    values: [
-      {
-        property: PROPERTIES.filter,
-        type: "text",
-        value: queryFilter,
-      },
-    ],
-    relations: {
-      // Point to the Query data source singleton to mark this as a live query
-      [PROPERTIES.data_source_type]: { toEntity: QUERY_DATA_SOURCE },
-    },
-  });
-  allOps.push(...queryBlockOps);
-  console.log(`  Created query data block ("Related Topics"): ${queryBlockId}`);
-  console.log(`    Filter: ${queryFilter}`);
-
-  // Attach to the first project with a Gallery view — position after last text block
-  const firstProjectName = projects[0].Name;
+  const firstProjectName = projects[0].Name || "Untitled Project";
   const firstProjectId = projectIdsByName[firstProjectName];
-  pos = Position.generateBetween(lastPosByEntity[firstProjectId] ?? null, null);
-  lastPosByEntity[firstProjectId] = pos;
-  const { ops: attachQueryOps } = Graph.createRelation({
-    fromEntity: firstProjectId,
-    toEntity: queryBlockId,
-    type: PROPERTIES.blocks,
-    position: pos,
-    // The View is set on the *relation entity* — this is the entity that
-    // represents the Blocks relation itself.  entityRelations lets you
-    // add relations to that implicit entity.
-    entityRelations: {
-      [PROPERTIES.view]: { toEntity: VIEWS.gallery },
-    },
-  });
-  allOps.push(...attachQueryOps);
-  console.log(`  Attached query block to "${firstProjectName}" → position: ${pos}  (Gallery view)`);
 
-  // ── 6b: Collection Data Block — "Key People" ─────────────────────────
-  // This block shows a hand-picked, ordered list of entities.
-  // Each entity is added via a Collection item relation.
-  const vitalikId = personIdsByName["Vitalik Buterin"];
-  const satoshiId = personIdsByName["Satoshi Nakamoto"];
+  if (newlyCreatedProjectNames.has(firstProjectName)) {
+    const personNames = Object.keys(personIdsByName);
+    if (personNames.length > 0) {
+      const selectedPeople = personNames.slice(0, 2).map(name => ({ toEntity: personIdsByName[name] }));
 
-  const { id: collectionBlockId, ops: collectionBlockOps } = Graph.createEntity({
-    name: "Key People",
-    types: [TYPES.data_block],
-    relations: {
-      // Mark as a Collection data source
-      [PROPERTIES.data_source_type]: { toEntity: COLLECTION_DATA_SOURCE },
-      // Add each person as a collection item (order follows array order)
-      [PROPERTIES.collection_item]: [
-        { toEntity: vitalikId },
-        { toEntity: satoshiId },
-      ],
-    },
-  });
-  allOps.push(...collectionBlockOps);
-  console.log(`  Created collection data block ("Key People"): ${collectionBlockId}`);
-  console.log(`    Items: Vitalik Buterin (${vitalikId}), Satoshi Nakamoto (${satoshiId})`);
+      const { id: collectionBlockId, ops: collectionBlockOps } = Graph.createEntity({
+        name: "Key People",
+        types: [TYPES.data_block],
+        relations: {
+          // Mark as a Collection data source
+          [PROPERTIES.data_source_type]: { toEntity: COLLECTION_DATA_SOURCE },
+          // Add each person as a collection item (order follows array order)
+          [PROPERTIES.collection_item]: selectedPeople,
+        },
+      });
+      allOps.push(...collectionBlockOps);
+      console.log(`  Created collection data block ("Key People"): ${collectionBlockId}`);
+      console.log(`    Items: ${personNames.slice(0, 2).join(", ")}`);
 
-  // Attach to the first project with a List view — position after query block
-  pos = Position.generateBetween(lastPosByEntity[firstProjectId] ?? null, null);
-  lastPosByEntity[firstProjectId] = pos;
-  const { ops: attachCollectionOps } = Graph.createRelation({
-    fromEntity: firstProjectId,
-    toEntity: collectionBlockId,
-    type: PROPERTIES.blocks,
-    position: pos,
-    entityRelations: {
-      [PROPERTIES.view]: { toEntity: VIEWS.list },
-    },
-  });
-  allOps.push(...attachCollectionOps);
-  console.log(`  Attached collection block to "${firstProjectName}" → position: ${pos}  (List view)`);
+      // Attach to the first project with a List view — position after any text blocks
+      if (firstProjectId) {
+        pos = Position.generateBetween(lastPosByEntity[firstProjectId] ?? null, null);
+        lastPosByEntity[firstProjectId] = pos;
+        const { ops: attachCollectionOps } = Graph.createRelation({
+          fromEntity: firstProjectId,
+          toEntity: collectionBlockId,
+          type: PROPERTIES.blocks,
+          position: pos,
+          entityRelations: {
+            [PROPERTIES.view]: { toEntity: VIEWS.list },
+          },
+        });
+        allOps.push(...attachCollectionOps);
+        console.log(`  Attached collection block to "${firstProjectName}" → position: ${pos}  (List view)`);
+      }
+    }
+  } else {
+    console.log(`  Skipping collection data block for existing project: "${firstProjectName}"`);
+  }
 
   // ── Step 7: Summary ───────────────────────────────────────────────────────
   console.log(`\n--- Summary ---`);
@@ -413,13 +521,34 @@ async function main() {
   }
 
   // ── Step 8: Publish ───────────────────────────────────────────────────────
-  console.log("\nStep 8: Publishing to the Geo knowledge graph...");
-  printOps(allOps, "data_to_delete", "demo_publish_ops.txt")
-  const txHash = await publishOps(allOps, "Demo: publish sample entities");
-  console.log(`\nDone! Transaction: ${txHash}`);
+  if (!fs.existsSync("data_to_delete")) {
+    fs.mkdirSync("data_to_delete");
+  }
+  printOps(allOps, "data_to_delete", "demo_publish_ops.txt");
+
+  if (DRY_RUN) {
+    console.log("\n  DRY-RUN complete. Operations written to data_to_delete/demo_publish_ops.txt");
+    console.log("    Re-run without --dry-run to publish for real.");
+  } else {
+    console.log("\nStep 8: Publishing to the Geo knowledge graph...");
+
+    // Split allOps into chunks of 100 to avoid transaction size limits
+    const chunkSize = 100;
+    for (let i = 0; i < allOps.length; i += chunkSize) {
+      const chunk = allOps.slice(i, i + chunkSize);
+      console.log(`\nPublishing batch ${Math.floor(i / chunkSize) + 1} of ${Math.ceil(allOps.length / chunkSize)} (${chunk.length} operations)...`);
+      try {
+        const txHash = await publishOps(chunk, `Demo: publish batch ${Math.floor(i / chunkSize) + 1}`);
+        console.log(`Batch ${Math.floor(i / chunkSize) + 1} Done! Transaction: ${txHash}`);
+      } catch (err) {
+        console.error(`Error publishing batch ${Math.floor(i / chunkSize) + 1}:`, err);
+        break;
+      }
+    }
+  }
 
   // ── Step 9: How to verify ─────────────────────────────────────────────────
-  const spaceId = process.env.DEMO_SPACE_ID;
+  // const spaceId = process.env.DEMO_SPACE_ID;
   console.log(`\nVerify your entities at:`);
   console.log(`  https://geobrowser.io/space/${spaceId}`);
   console.log(`\nOr query the API with: bun run 01_api_demo.ts`);

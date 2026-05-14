@@ -12,7 +12,8 @@
    "Latest version": "2.6.0",
    "Latest release date": "2025-01",
    "Actively maintained": "Yes",
-   "Contributors": "Edward Z. Yang, Nikita Shulga\n"
+   "Contributors": "Edward Z. Yang, Nikita Shulga\n",
+   "topics": ["Deep Learning", "Machine Learning"]
  },
  {
    "Name": "Keras github repository",
@@ -27,7 +28,9 @@
    "Latest version": "3.8.0",
    "Latest release date": "2025-01",
    "Actively maintained": "Yes",
-   "Contributors": "François Chollet, Qianli Scott Zhu\n"
+   "Contributors": "François Chollet, Qianli Scott Zhu\n",
+   "Dependencies": "PyTorch github repository",
+   "topics": ["Deep Learning", "Large Language Models"]
  },
  {
    "Name": "scikit-learn github repository",
